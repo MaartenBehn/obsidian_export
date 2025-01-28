@@ -3,5 +3,39 @@
 version = 3
 
 [[package]]
+name = "anyhow"
+version = "1.0.95"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
+
+[[package]]
+name = "markdown"
+version = "1.0.0-alpha.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6491e6c702bf7e3b24e769d800746d5f2c06a6c6a2db7992612e0f429029e81"
+dependencies = [
+ "unicode-id",
+]
+
+[[package]]
+name = "markdown-meta-parser"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "321df8bf057b6ec9bf26e368e25ce222b5b8e39f53337b56823c31026a8053fc"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
 name = "obsidian_export"
 version = "0.1.0"
+dependencies = [
+ "markdown",
+ "markdown-meta-parser",
+]
+
+[[package]]
+name = "unicode-id"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10103c57044730945224467c09f71a4db0071c123a0648cc3e818913bde6b561"
