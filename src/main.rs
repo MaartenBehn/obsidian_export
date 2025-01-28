@@ -8,6 +8,7 @@ use markdown_meta_parser::MetaData;
 
 const NODES_DIR: &str = "/home/stroby/Notes/";
 
+
 // one possible implementation of walking a directory only visiting files
 fn visit_dirs(dir: &Path) -> io::Result<()> {
     if dir.is_dir() {
@@ -21,14 +22,14 @@ fn visit_dirs(dir: &Path) -> io::Result<()> {
 
                 visit_dirs(&path)?;
             } else {
-                process_file(&entry);
+                parse_tags(&entry);
             }
         }
     }
     Ok(())
 }
 
-fn process_file(entry: &DirEntry) {
+fn parse_tags(entry: &DirEntry) {
     // println!("Processing entry: {:?}", entry);
     
     let path = entry.path();
@@ -76,6 +77,8 @@ fn process_file(entry: &DirEntry) {
 
                                 // Search for tags:
                                 // - tag
+                                // - sagfas
+                                // - saf
                                 if &content[tags_index..(tags_index + 5)] == "tags:" {
                                     let next_line_end_option = content[(line_end + 1)..].find("\n");
                                     
@@ -103,22 +106,27 @@ fn process_file(entry: &DirEntry) {
                                         }
                                         
                                     } else {
-                                        println!("No next line after tag: {:?}", path);
+                                        //println!("No next line after tag: {:?}", path);
                                     }
-
                                 }
-
                             }
 
+                            let mut owned_tags = vec![];
                             for tag in tags {
                                 let tag: String = tag.chars().filter(|c| (*c != '#' && *c != '\"' && *c != '[' && *c != ']')).collect();
 
                                 println!("Tag: {:?}", tag);
-                            }
-                        } else {
 
-                            
-                            
+                                owned_tags.push(tag);
+                            }
+
+                            if !owned_tags.is_empty() {
+                                copy_file(entry, content, owned_tags);  
+                            } else {
+                                println!("No Tags: {:?}", path)
+                            }
+
+                        } else {  
                             println!("Tags found but not return statement: {:?}", path)
                         }
                     } else {
@@ -126,17 +134,54 @@ fn process_file(entry: &DirEntry) {
                     }
                 }
                     Err(e) => {
-                        println!("  read error: {:?}", e);
+                        println!("Read error: {:?}", e);
                     }
                 }
             }
             Err(e) => {
-                println!("  open error: {:?}", e);
+                println!("Open error: {:?}", e);
             }
         }
      
 }
 
+fn copy_file(entry: &DirEntry, content: String, tags: Vec<String>) {
+    let destinations = vec![
+        (["uni"], "/home/stroby/dev/obsidian_export/uni_notes", "uni MOC.md")
+    ];
+
+    for (filter_tags, destination, index_name) in destinations {
+        let mut found = false;
+        for tag in tags.iter() {
+            for filter_tag in filter_tags.iter() {
+                if tag.contains(filter_tag) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if !found {
+            continue;
+        }
+
+        let mut path = Path::new(destination);
+        if !path.exists() {
+            fs::create_dir_all(destination).unwrap();
+        }
+        
+        let filename_os_string = entry.file_name(); 
+        let mut filename = filename_os_string.to_str().expect(&format!("Cant parse filename: {:?}", path));
+        if filename == index_name {
+            filename = "index.md";
+        }
+
+        let path = path.join(filename);
+        fs::write(path.to_owned(), content.to_owned()).expect(&format!("Unable to write file: {:?}", path));
+    }
+    
+
+}
 
 fn main() {
     let path = Path::new(NODES_DIR);
