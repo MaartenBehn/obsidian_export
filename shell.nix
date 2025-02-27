@@ -14,8 +14,6 @@ pkgs.mkShell rec {
   packages = with pkgs; [
     rustup
     nodejs
-    hugo
-    go
   ];
 }
 
