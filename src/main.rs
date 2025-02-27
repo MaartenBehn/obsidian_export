@@ -2,40 +2,62 @@ use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs::{self, DirEntry, File};
 use std::io::{self, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use markdown_meta_parser::MetaData;
 
+fn main() {
 
-const NODES_DIR: &str = "/home/stroby/Notes/";
+    let t = ExportTask {
+        tags: vec!["uni".to_string()], 
+        notes: "/home/stroby/Notes".to_string(), 
+        exclude_notes_folders: vec![".trash".to_string(), ".obsidian".to_string(), "Sources".to_string()],
+        source: "/home/stroby/Notes/Sources/".to_string(), 
+        destination: "/home/stroby/dev/obsidian_export/quartz/content/".to_string(), 
+        destination_source: "/home/stroby/dev/obsidian_export/quartz/content/attachments".to_string(), 
+        index_file: "uni MOC.md".to_string(),
+    };
 
+    let path = Path::new(&t.destination);
+    if !path.exists() {
+        fs::create_dir_all(&t.destination).unwrap();
+    } else {
+        fs::remove_dir_all(path).unwrap();
+        fs::create_dir(path).unwrap();
+    }
 
-// one possible implementation of walking a directory only visiting files
-fn visit_dirs(dir: &Path) -> io::Result<()> {
+    let path = Path::new(&t.destination_source);
+    fs::create_dir(path).unwrap();
+        
+    let path = Path::new(&t.notes);
+    search_notes(&t, path);
+}
+
+fn search_notes(t: &ExportTask, dir: &Path) -> io::Result<()> {
     if dir.is_dir() {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
-                if path.ends_with(".trash") || path.ends_with(".obsidian") || path.ends_with("Sources") {
+                if t.exclude_notes_folders.iter().any(|f| { path.ends_with(f) }) { 
                     continue;
                 }
 
-                visit_dirs(&path)?;
+                search_notes(t, &path)?;
             } else {
-                parse_tags(&entry);
+                parse_tags(t, &entry);
             }
         }
     }
     Ok(())
 }
 
-fn parse_tags(entry: &DirEntry) {
+fn parse_tags(t: &ExportTask, entry: &DirEntry) -> io::Result<()> {
     // println!("Processing entry: {:?}", entry);
     
     let path = entry.path();
     let file = File::open(&path);
 
-    println!("{}", path.to_str().unwrap());
+    // println!("Parsing File: {}", path.to_str().unwrap());
 
     match file {
         Ok(mut file) => {
@@ -44,7 +66,7 @@ fn parse_tags(entry: &DirEntry) {
             match extension {
                 Some(str) => {
                     if str != "md" {
-                        return;
+                        return Ok(());
                     }
                 }
                 None => {
@@ -115,13 +137,13 @@ fn parse_tags(entry: &DirEntry) {
                             for tag in tags {
                                 let tag: String = tag.chars().filter(|c| (*c != '#' && *c != '\"' && *c != '[' && *c != ']')).collect();
 
-                                println!("Tag: {:?}", tag);
+                                // println!("Tag: {:?}", tag);
 
                                 owned_tags.push(tag);
                             }
 
                             if !owned_tags.is_empty() {
-                                copy_file(entry, content, owned_tags);  
+                                copy_file(t, entry, content, &path, owned_tags)?;  
                             } else {
                                 println!("No Tags: {:?}", path)
                             }
@@ -142,49 +164,111 @@ fn parse_tags(entry: &DirEntry) {
                 println!("Open error: {:?}", e);
             }
         }
-     
+
+    Ok(()) 
 }
 
-fn copy_file(entry: &DirEntry, content: String, tags: Vec<String>) {
-    let destinations = vec![
-        (["uni"], "/home/stroby/dev/obsidian_export/uni_notes", "uni MOC.md")
-    ];
+pub struct ExportTask {
+    tags: Vec<String>,
+    notes: String,
+    exclude_notes_folders: Vec<String>,
+    source: String,
+    destination: String,
+    destination_source: String,
+    index_file: String,
+}
 
-    for (filter_tags, destination, index_name) in destinations {
-        let mut found = false;
-        for tag in tags.iter() {
-            for filter_tag in filter_tags.iter() {
-                if tag.contains(filter_tag) {
-                    found = true;
-                    break;
-                }
+fn copy_file(t: &ExportTask, entry: &DirEntry, content: String, path: &PathBuf, tags: Vec<String>) -> io::Result<()> { 
+    let mut found = false;
+    for tag in tags.iter() {
+        for filter_tag in t.tags.iter() {
+            if tag.contains(filter_tag) {
+                found = true;
+                break;
             }
         }
+    }
 
-        if !found {
+    if !found {
+        return Ok(());
+    }
+
+    let content = copy_attachments(t, content, path)?;
+    let content = content.replace("\n", "  \n");
+    
+    let filename_os_string = entry.file_name(); 
+    let mut filename = filename_os_string.to_str().expect(&format!("Cant parse filename: {:?}", path));
+    if filename == t.index_file {
+        filename = "index.md";
+    }
+
+    let new_path = Path::new(&t.destination).join(filename);
+    fs::write(new_path, content.to_owned()).expect(&format!("Unable to write file: {:?}", path));
+
+    Ok(())
+}
+
+
+fn copy_attachments(t: &ExportTask, mut content: String, path: &PathBuf) -> io::Result<String> {     
+    for (start, _) in content.match_indices("[[") {
+        let start = start + 2;
+        let end = content[start..].find("]]");
+
+        if end.is_none() {
+            println!("{:?} has unclosed [[ at end", path);
+            continue;
+        }
+        let end = end.unwrap() + start;
+
+        let next_start = content[start..].find("[[");
+
+        if next_start.is_some() && (next_start.unwrap() + start) < end {
+            println!("{:?} has unclosed [[ ", path);
             continue;
         }
 
-        let mut path = Path::new(destination);
-        if !path.exists() {
-            fs::create_dir_all(destination).unwrap();
-        }
-        
-        let filename_os_string = entry.file_name(); 
-        let mut filename = filename_os_string.to_str().expect(&format!("Cant parse filename: {:?}", path));
-        if filename == index_name {
-            filename = "index.md";
+        let attachment_path = &content[start..end];
+        if !attachment_path.contains(".") || attachment_path.contains(".md") {
+            continue;
         }
 
-        let path = path.join(filename);
-        fs::write(path.to_owned(), content.to_owned()).expect(&format!("Unable to write file: {:?}", path));
+        let attachment_path = attachment_path.split('|').next().unwrap();
+
+        let source_path = Path::new(&t.source);
+        let attachment_path = Path::new(attachment_path);
+
+        let res = find_attachment(source_path, attachment_path)?;
+        if res.is_none() {
+            println!("Attachment {:?} in {:?} not found.", attachment_path, path);
+            continue;
+        }
+        let attachment_path = res.unwrap();
+
+        let new_path = Path::new(&t.destination_source).join(attachment_path.file_name().unwrap()); 
+        fs::copy(attachment_path, new_path)?;
     }
-    
 
+    Ok(content)
 }
 
-fn main() {
-    let path = Path::new(NODES_DIR);
-    
-    visit_dirs(path);
+fn find_attachment(dir: &Path, sub_path: &Path) -> io::Result<Option<PathBuf>> {
+    if dir.is_dir() {
+        for entry in fs::read_dir(dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() { 
+                let res = find_attachment(&path, sub_path)?;
+                if res.is_some() {
+                    return Ok(res);
+                }
+            } else {
+                let path = entry.path();
+                if path.ends_with(sub_path) {
+                    return Ok(Some(path));
+                }
+            }
+        }
+    }
+    Ok(None)
 }
+
