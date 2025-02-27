@@ -13,7 +13,7 @@ pkgs.mkShell rec {
  
   packages = with pkgs; [
     rustup
-    nodejs_22
+    nodejs
     hugo
     go
   ];
