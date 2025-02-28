@@ -14,7 +14,7 @@ fn main() {
         source: "/home/stroby/Notes/Sources/".to_string(), 
         destination: "/home/stroby/dev/obsidian_export/quartz/content/".to_string(), 
         destination_source: "/home/stroby/dev/obsidian_export/quartz/content/attachments".to_string(), 
-        index_file: "uni MOC.md".to_string(),
+        index_file: "uni Index.md".to_string(),
     };
 
     let path = Path::new(&t.destination);
