@@ -261,7 +261,7 @@ fn copy_attachments(t: &ExportTask, content: String, path: &PathBuf) -> io::Resu
         
         fs::copy(&attachment_path, &new_path)?;
 
-        new_content = new_content.replace(attachment, &new_path);
+        new_content = new_content.replace(attachment, &format!("{}-{}.{}", stem, i, extension));
     }
 
     Ok(new_content)
