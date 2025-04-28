@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-use std::ffi::OsStr;
 use std::fs::{self, DirEntry, File};
 use std::io::{self, Read};
 use std::path::{Path, PathBuf};
@@ -29,7 +27,11 @@ fn main() {
     fs::create_dir(path).unwrap();
         
     let path = Path::new(&t.notes);
-    search_notes(&t, path);
+    let res = search_notes(&t, path);
+
+    if res.is_err() {
+        println!("Err: {}", res.unwrap_err());
+    }
 }
 
 fn search_notes(t: &ExportTask, dir: &Path) -> io::Result<()> {
@@ -44,7 +46,7 @@ fn search_notes(t: &ExportTask, dir: &Path) -> io::Result<()> {
 
                 search_notes(t, &path)?;
             } else {
-                parse_tags(t, &entry);
+                parse_tags(t, &entry)?;
             }
         }
     }
@@ -77,7 +79,7 @@ fn parse_tags(t: &ExportTask, entry: &DirEntry) -> io::Result<()> {
             let mut buffer = Vec::new();
             let content = file.read_to_end(&mut buffer);
             match content {
-                Ok(sz) => {
+                Ok(_) => {
                     //println!("  got {} bytes", sz);
 
                     let content = String::from_utf8(buffer).expect("Bytes should be valid utf8");
@@ -209,7 +211,9 @@ fn copy_file(t: &ExportTask, entry: &DirEntry, content: String, path: &PathBuf, 
 }
 
 
-fn copy_attachments(t: &ExportTask, mut content: String, path: &PathBuf) -> io::Result<String> {     
+fn copy_attachments(t: &ExportTask, content: String, path: &PathBuf) -> io::Result<String> {     
+    
+    let mut new_content = content.clone(); 
     for (start, _) in content.match_indices("[[") {
         let start = start + 2;
         let end = content[start..].find("]]");
@@ -227,15 +231,15 @@ fn copy_attachments(t: &ExportTask, mut content: String, path: &PathBuf) -> io::
             continue;
         }
 
-        let attachment_path = &content[start..end];
-        if !attachment_path.contains(".") || attachment_path.contains(".md") {
+        let attachment = &content[start..end];
+        if !attachment.contains(".") || attachment.contains(".md") {
             continue;
         }
 
-        let attachment_path = attachment_path.split('|').next().unwrap();
+        let attachment = attachment.split('|').next().unwrap();
 
         let source_path = Path::new(&t.source);
-        let attachment_path = Path::new(attachment_path);
+        let attachment_path = Path::new(attachment);
 
         let res = find_attachment(source_path, attachment_path)?;
         if res.is_none() {
@@ -243,12 +247,20 @@ fn copy_attachments(t: &ExportTask, mut content: String, path: &PathBuf) -> io::
             continue;
         }
         let attachment_path = res.unwrap();
+    
+        let new_path = Path::new(&t.destination_source).join(attachment_path.file_name().unwrap()).to_str().unwrap().to_string();
+        let clean_new_path = new_path.replace("~", "-");
 
-        let new_path = Path::new(&t.destination_source).join(attachment_path.file_name().unwrap()); 
-        fs::copy(attachment_path, new_path)?;
+        if fs::exists(&clean_new_path)? {
+            println!("Multiple: {}", clean_new_path); 
+        } else {
+            fs::copy(&attachment_path, new_path)?;
+        }
+
+        new_content = new_content.replace(attachment, &clean_new_path);
     }
 
-    Ok(content)
+    Ok(new_content)
 }
 
 fn find_attachment(dir: &Path, sub_path: &Path) -> io::Result<Option<PathBuf>> {
