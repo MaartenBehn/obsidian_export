@@ -248,17 +248,15 @@ fn copy_attachments(t: &ExportTask, content: String, path: &PathBuf) -> io::Resu
         }
         let attachment_path = res.unwrap();
     
-        let new_path = Path::new(&t.destination_source).join(attachment_path.file_name().unwrap());
-        let extension = new_path.extension().unwrap().to_str().unwrap();
-        let stem = new_path.file_stem().unwrap().to_str().unwrap();
-
+        let extension = attachment_path.extension().unwrap().to_str().unwrap();
+        let stem = attachment_path.file_stem().unwrap().to_str().unwrap();
         let stem = stem.replace("~", "-");
 
         let mut i = 0; 
-        let mut new_path = format!("{}-{}.{}", stem, i, extension);
+        let mut new_path = format!("{}/{}-{}.{}", &t.destination_source, stem, i, extension);
         while fs::exists(&new_path)? {
             i += 1;
-            new_path = format!("{}-{}.{}", stem, i, extension);
+            new_path = format!("{}/{}-{}.{}", &t.destination_source, stem, i, extension);
         }
         
         fs::copy(&attachment_path, &new_path)?;
