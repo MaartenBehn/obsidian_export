@@ -255,10 +255,10 @@ fn copy_attachments(t: &ExportTask, content: String, path: &PathBuf) -> io::Resu
         let stem = stem.replace("~", "-");
 
         let mut i = 0; 
-        let mut new_path = format!("{}{}.{}", stem, i, extension);
+        let mut new_path = format!("{}-{}.{}", stem, i, extension);
         while fs::exists(&new_path)? {
             i += 1;
-            new_path = format!("{}{}.{}", stem, i, extension);
+            new_path = format!("{}-{}.{}", stem, i, extension);
         }
         
         fs::copy(&attachment_path, &new_path)?;
