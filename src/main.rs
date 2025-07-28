@@ -7,11 +7,11 @@ fn main() {
 
     let t = ExportTask {
         tags: vec!["uni".to_string()], 
-        notes: "/home/stroby/Notes".to_string(), 
+        notes: "/notes".to_string(), 
         exclude_notes_folders: vec![".trash".to_string(), ".obsidian".to_string(), "Sources".to_string()],
-        source: "/home/stroby/Notes/Sources/".to_string(), 
-        destination: "/home/stroby/dev/obsidian_export/quartz/content/".to_string(), 
-        destination_source: "/home/stroby/dev/obsidian_export/quartz/content/attachments".to_string(), 
+        source: "/notes/Sources/".to_string(), 
+        destination: "/srv/obsidian_export/quartz/content/".to_string(), 
+        destination_source: "/srv/obsidian_export/quartz/content/attachments".to_string(), 
         index_file: "uni Index.md".to_string(),
     };
 
