@@ -234,12 +234,21 @@ fn copy_attachments(t: &ExportTask, content: String, path: &PathBuf) -> io::Resu
         let attachment = &content[start..end];
         let attachment = attachment.split('|').next().unwrap().trim();
 
-        if attachment.is_empty() || !attachment.contains(".") || attachment.contains(".md") || attachment.chars().last().unwrap() == '.' {
+        if attachment.is_empty() 
+            || !attachment.contains(".")
+            || attachment.chars().last().unwrap() == '.'
+            || attachment.ends_with(".md") {
             continue;
         }
 
+        let attachment = if attachment.ends_with(".excalidraw") || attachment.ends_with(".canvas") {
+            format!("{attachment}.md")
+        } else {
+            attachment.to_string()
+        };
+
         let source_path = Path::new(&t.source);
-        let attachment_path = Path::new(attachment);
+        let attachment_path = Path::new(&attachment);
 
         let res = find_attachment(source_path, attachment_path)?;
         if res.is_none() {
@@ -262,7 +271,7 @@ fn copy_attachments(t: &ExportTask, content: String, path: &PathBuf) -> io::Resu
         
         fs::copy(&attachment_path, &new_path)?;
 
-        new_content = new_content.replace(attachment, &format!("{}-{}.{}", stem, i, extension));
+        new_content = new_content.replace(&attachment, &format!("{}-{}.{}", stem, i, extension));
     }
 
     Ok(new_content)
