@@ -230,13 +230,13 @@ fn copy_attachments(t: &ExportTask, content: String, path: &PathBuf) -> io::Resu
             println!("{:?} has unclosed [[ ", path);
             continue;
         }
-
+        
         let attachment = &content[start..end];
-        if !attachment.contains(".") || attachment.contains(".md") {
+        let attachment = attachment.split('|').next().unwrap().trim();
+
+        if attachment.is_empty() || !attachment.contains(".") || attachment.contains(".md") || attachment.chars().last().unwrap() == '.' {
             continue;
         }
-
-        let attachment = attachment.split('|').next().unwrap();
 
         let source_path = Path::new(&t.source);
         let attachment_path = Path::new(attachment);
@@ -251,6 +251,7 @@ fn copy_attachments(t: &ExportTask, content: String, path: &PathBuf) -> io::Resu
         let extension = attachment_path.extension().unwrap().to_str().unwrap();
         let stem = attachment_path.file_stem().unwrap().to_str().unwrap();
         let stem = stem.replace("~", "-");
+        let stem = stem.replace(".", "-");
 
         let mut i = 0; 
         let mut new_path = format!("{}/{}-{}.{}", &t.destination_source, stem, i, extension);
