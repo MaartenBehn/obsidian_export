@@ -241,13 +241,13 @@ fn copy_attachments(t: &ExportTask, content: String, path: &PathBuf) -> io::Resu
             continue;
         }
 
-        let attachment = if attachment.ends_with(".excalidraw") || attachment.ends_with(".canvas") {
+        let attachment = if attachment.ends_with(".excalidraw") {
             format!("{attachment}.md")
         } else {
             attachment.to_string()
         };
 
-        let source_path = Path::new(&t.source);
+        let source_path = Path::new(&t.notes);
         let attachment_path = Path::new(&attachment);
 
         let res = find_attachment(source_path, attachment_path)?;
